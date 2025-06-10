@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2/promise');
+const { log } = require('./utils/logger');
 
 const app = express();
 app.use(express.json());
@@ -32,6 +33,7 @@ createTable().catch(console.error);
 app.post('/answers', async (req, res) => {
   const { question_id, user_id, content } = req.body;
   if (!question_id || !user_id || !content) {
+    await log('answer-service', 'warn', 'POST /answers thiếu trường');
     return res.status(400).json({ message: 'Missing fields' });
   }
 
@@ -40,8 +42,10 @@ app.post('/answers', async (req, res) => {
       'INSERT INTO answers (question_id, user_id, content) VALUES (?, ?, ?)',
       [question_id, user_id, content]
     );
+    await log('answer-service', 'info', `userId=${user_id} trả lời questionId=${question_id}`);
     res.status(201).json({ message: 'Answer created', id: result.insertId });
   } catch (err) {
+    await log('answer-service', 'error', `Lỗi tạo answer: ${err.message}`);
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const pool = require('../config/db');
 // const { sendMail } = require('../utils/mailer');
 const { emailQueue } = require('../queue');
+const { log } = require('../utils/logger');
 
 // Đăng ký user mới
 exports.register = async (req, res) => {
@@ -34,24 +35,33 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
+    await log('user-service', 'warn', 'Thiếu username hoặc password trong login');
     return res.status(400).json({ message: 'Username và password bắt buộc' });
   }
 
   try {
     const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
-    if (rows.length === 0) return res.status(401).json({ message: 'Sai username hoặc password' });
+    if (rows.length === 0) {
+      await log('user-service', 'warn', `Đăng nhập thất bại: Không tìm thấy user với username=${username}`);
+      return res.status(401).json({ message: 'Sai username hoặc password' });
+    } 
+
 
     const user = rows[0];
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ message: 'Sai username hoặc password' });
-
+    if (!match) {
+      await log('user-service', 'warn', `Login failed: password sai cho ${username}`);
+      return res.status(401).json({ message: 'Sai username hoặc password' });
+    }
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '8h' }
     );
+    await log('user-service', 'info', `user ${user.id} (${user.username}) đăng nhập thành công`);
     res.json({ message: 'Đăng nhập thành công', token });
   } catch (err) {
+    await log('user-service', 'error', `Lỗi đăng nhập: ${err.message}`);
     console.error(err);
     res.status(500).json({ message: 'Lỗi server' });
   }

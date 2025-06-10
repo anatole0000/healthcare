@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const verifyToken = require('./middlewares/verifyToken');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,7 +27,7 @@ app.use('/questions', createProxyMiddleware({
 }));
 
 // ✅ Proxy route answer-service
-app.use('/answers', createProxyMiddleware({
+app.use('/answers', verifyToken, createProxyMiddleware({
   target: process.env.ANSWER_SERVICE, // http://localhost:3003
   changeOrigin: true,
   pathRewrite: {
@@ -43,7 +44,7 @@ app.use('/search', createProxyMiddleware({
   }
 }));
 
-app.use('/notifications', createProxyMiddleware({
+app.use('/notifications', verifyToken, createProxyMiddleware({
   target: process.env.NOTIFICATION_SERVICE + '/notifications',
   changeOrigin: true,
   pathRewrite: {
@@ -68,7 +69,7 @@ app.use('/analytics', createProxyMiddleware({
   },
 }));
 
-app.use('/chat', createProxyMiddleware({
+app.use('/chat', verifyToken, createProxyMiddleware({
   target: process.env.CHAT_SERVICE + '/chat', // http://localhost:3007
   changeOrigin: true,
   pathRewrite: {
